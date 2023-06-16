@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Pipeman's YouTube Downloader</title>
+</head>
+<link rel="stylesheet" href="https://pipeman.org/std-style.css">
+<style>
+    * {
+        text-align: center;
+        overflow: hidden;
+    }
+
+    .text {
+        color: forestgreen;
+        font-family: Arial, serif;
+    }
+
+    .button:disabled {
+        background-color: darkgray !important;
+        color: gray !important;
+    }
+</style>
+
+<body>
+<div style="margin: 0 auto; transform: translate(0, 10%); height: 90vh">
+    <h2 class="text header">YouTube-Downloader</h2>
+
+    <h5 id="email-header">Youtube Video URL</h5>
+    <label for="video-url"></label><input id="video-url" type="text" class="text-input">
+    <br>
+    <br>
+    <button style="background-color: forestgreen; color: lightgrey" class="text-input button"
+            id="submit-button" type="submit" onclick="searchVideoFormats()">Search
+    </button>
+
+    <h2 class="text" id="video-title" style="margin-bottom: 5px"></h2>
+    <!--    <a class="text" id="video-url-href" href="" hidden>Download MP4</a>-->
+    <button style="background-color: lightgray; color: forestgreen" class="text-input button"
+            id="video-url-href" type="submit" hidden>Download MP4
+    </button>
+    <br>
+    <!--    <a class="text text-input button"  id="audio-url-href" href="" >Download MP3</a>-->
+    <button style="background-color: lightgray; color: forestgreen" class="text-input button"
+            id="audio-url-href" type="submit" hidden>Download MP3
+    </button>
+</div>
+</body>
+<script>
+    function parseIdFromURL(url) {
+        url = url.trim();
+        if (url.length === 0) return "";
+        if (url.length === 11) return url;
+
+        const yb = url.indexOf("youtu.be/");
+        const watch = url.indexOf("/watch?v=");
+        const shorts = url.indexOf("/shorts/");
+
+        switch (true) {
+            case yb !== -1:
+                return url.substring(yb + 9, yb + 20);
+            case watch !== -1:
+                return url.substring(watch + 9, watch + 20);
+            case shorts !== -1:
+                return url.substring(shorts + 8, shorts + 19);
+            default:
+                return "";
+        }
+        // return yb === -1 ? watch === -1 ? url : url.substring(watch + 9, watch + 20) : url.substring(yb + 9, yb + 20);
+    }
+
+    const inputElement = document.getElementById("video-url");
+    inputElement.addEventListener("keyup", function (event) {
+        if (event.code === "Enter") {
+            event.preventDefault();
+            document.getElementById("submit-button").click();
+        }
+    });
+
+    inputElement.addEventListener("input", () => {
+        const id = parseIdFromURL(document.getElementById("video-url").value);
+        if (id.length > 0) {
+            inputElement.value = id;
+            searchVideoFormats();
+        }
+    });
+
+    function searchVideoFormats() {
+        try {
+            document.getElementById("submit-button").disabled = true;
+
+            fetch("/formats/" + inputElement.value).then(response => response.json().then(json => {
+                console.log(json); // https://www.youtube.com/watch?v=6vCxr-8r_og
+
+                // document.getElementById("submit-button").disabled = false;
+
+                if (response.status !== 200) return;
+
+                document.getElementById("video-title").innerText = json["title"];
+
+                document.getElementById("video-url-href").onclick = () => location.href = json["downloads"]["av"];
+                document.getElementById("video-url-href").hidden = false;
+
+                if (json["downloads"]["audio"] != null) {
+                    document.getElementById("audio-url-href").onclick = () => location.href = json["downloads"]["audio"];
+                    document.getElementById("audio-url-href").hidden = false;
+                }
+                document.getElementById("submit-button").disabled = false;
+            }));
+        } finally {
+        }
+    }
+</script>
+</html>
