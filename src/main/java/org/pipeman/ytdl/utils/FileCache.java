@@ -8,7 +8,7 @@ import java.util.Map;
 
 public class FileCache {
     private final Map<String, String> cache = new HashMap<>();
-    private final boolean useCache = false;
+    private static final boolean useCache = true;
 
     public String get(String filename) {
         String content = cache.get(filename);

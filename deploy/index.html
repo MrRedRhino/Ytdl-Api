@@ -20,6 +20,16 @@
         background-color: darkgray !important;
         color: gray !important;
     }
+
+    ul {
+        list-style: none;
+    }
+
+    li {
+        cursor: pointer;
+        text-decoration: underline;
+        margin-top: 10px;
+    }
 </style>
 
 <body>
@@ -48,31 +58,20 @@
     <button style="background-color: lightgray; color: forestgreen" class="text-input button"
             id="wav-href" type="submit" hidden>Download WAV
     </button>
+
+    <h5 id="search-videos-header">Search query</h5>
+    <label for="video-search"></label><input id="video-search" type="text" class="text-input">
+    <br>
+    <br>
+    <button style="background-color: forestgreen; color: lightgrey" class="text-input button"
+            id="submit-search-button" type="submit" onclick="searchVideos()">Search videos
+    </button>
+    <ul id="results">
+
+    </ul>
 </div>
 </body>
 <script>
-    function parseIdFromURL(url) {
-        url = url.trim();
-        if (url.length === 0) return "";
-        if (url.length === 11) return url;
-
-        const yb = url.indexOf("youtu.be/");
-        const watch = url.indexOf("/watch?v=");
-        const shorts = url.indexOf("/shorts/");
-
-        switch (true) {
-            case yb !== -1:
-                return url.substring(yb + 9, yb + 20);
-            case watch !== -1:
-                return url.substring(watch + 9, watch + 20);
-            case shorts !== -1:
-                return url.substring(shorts + 8, shorts + 19);
-            default:
-                return "";
-        }
-        // return yb === -1 ? watch === -1 ? url : url.substring(watch + 9, watch + 20) : url.substring(yb + 9, yb + 20);
-    }
-
     const inputElement = document.getElementById("video-url");
     inputElement.addEventListener("keyup", function (event) {
         if (event.code === "Enter") {
@@ -105,6 +104,23 @@
             }));
         } finally {
         }
+    }
+
+    function searchVideos() {
+        const query = document.getElementById("video-search").value;
+        fetch("/search?query=" + query).then(response => response.json().then(json => {
+            const resultsUL = document.getElementById("results");
+            resultsUL.innerHTML = "";
+            for (let i = 0; i < json.length; i++) {
+                const element = document.createElement("li");
+                element.innerHTML = json[i]["title"];
+                element.onclick = () => {
+                    inputElement.value = json[i]["url"];
+                    searchVideoFormats();
+                }
+                resultsUL.append(element);
+            }
+        }));
     }
 </script>
 </html>
