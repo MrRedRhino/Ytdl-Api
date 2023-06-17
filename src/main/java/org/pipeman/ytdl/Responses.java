@@ -5,9 +5,8 @@ import io.javalin.http.Context;
 import java.util.Map;
 
 public enum Responses {
-    INVALID_TYPE(0, 400, "Query param 'type' must be 'av' or 'audio'"),
     VIDEO_DOES_NOT_EXIST(1, 400, "Video does not exist on YouTube"),
-    ;
+    QUERY_INVALID(2, 400, "Query is empty");
 
     private final int id;
     private final String name;

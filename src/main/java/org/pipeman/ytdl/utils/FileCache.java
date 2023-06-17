@@ -8,10 +8,11 @@ import java.util.Map;
 
 public class FileCache {
     private final Map<String, String> cache = new HashMap<>();
+    private final boolean useCache = false;
 
     public String get(String filename) {
         String content = cache.get(filename);
-        if (content == null) {
+        if (content == null || !useCache) {
             try {
                 content = Files.readString(Path.of(filename));
                 cache.put(filename, content);

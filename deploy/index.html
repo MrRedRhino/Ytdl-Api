@@ -40,9 +40,13 @@
             id="video-url-href" type="submit" hidden>Download MP4
     </button>
     <br>
-    <!--    <a class="text text-input button"  id="audio-url-href" href="" >Download MP3</a>-->
+    <!--    <a class="text text-input button"  id="mp3-href" href="" >Download MP3</a>-->
     <button style="background-color: lightgray; color: forestgreen" class="text-input button"
-            id="audio-url-href" type="submit" hidden>Download MP3
+            id="mp3-href" type="submit" hidden>Download MP3
+    </button>
+
+    <button style="background-color: lightgray; color: forestgreen" class="text-input button"
+            id="wav-href" type="submit" hidden>Download WAV
     </button>
 </div>
 </body>
@@ -77,20 +81,11 @@
         }
     });
 
-    inputElement.addEventListener("input", () => {
-        const id = parseIdFromURL(document.getElementById("video-url").value);
-        if (id.length > 0) {
-            inputElement.value = id;
-            searchVideoFormats();
-        }
-    });
-
     function searchVideoFormats() {
         try {
             document.getElementById("submit-button").disabled = true;
 
-            fetch("/formats/" + inputElement.value).then(response => response.json().then(json => {
-                console.log(json); // https://www.youtube.com/watch?v=6vCxr-8r_og
+            fetch("/formats?id=" + inputElement.value + "&format=" + "mp3").then(response => response.json().then(json => {
 
                 // document.getElementById("submit-button").disabled = false;
 
@@ -98,13 +93,14 @@
 
                 document.getElementById("video-title").innerText = json["title"];
 
-                document.getElementById("video-url-href").onclick = () => location.href = json["downloads"]["av"];
+                document.getElementById("video-url-href").onclick = () => location.href = `/download/?id=${inputElement.value}&format=1080`;
                 document.getElementById("video-url-href").hidden = false;
 
-                if (json["downloads"]["audio"] != null) {
-                    document.getElementById("audio-url-href").onclick = () => location.href = json["downloads"]["audio"];
-                    document.getElementById("audio-url-href").hidden = false;
-                }
+                document.getElementById("mp3-href").onclick = () => location.href = `/download/?id=${inputElement.value}&format=mp3`;
+                document.getElementById("mp3-href").hidden = false;
+
+                document.getElementById("wav-href").onclick = () => location.href = `/download/?id=${inputElement.value}&format=wav`;
+                document.getElementById("wav-href").hidden = false;
                 document.getElementById("submit-button").disabled = false;
             }));
         } finally {

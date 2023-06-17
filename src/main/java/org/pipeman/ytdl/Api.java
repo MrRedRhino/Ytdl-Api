@@ -3,29 +3,34 @@ package org.pipeman.ytdl;
 import io.javalin.http.ContentType;
 import io.javalin.http.Context;
 import io.javalin.http.Header;
-import org.pipeman.ytdl.utils.DownloadType;
+import io.sfrei.tracksearch.exceptions.TrackSearchException;
+import org.json.JSONObject;
 import org.pipeman.ytdl.utils.StrippedVideoInfo;
 import org.pipeman.ytdl.utils.Utils;
 import org.pipeman.ytdl.utils.Youtube;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.IOException;
+import java.net.URI;
 import java.net.URL;
 import java.net.URLConnection;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
 
 public class Api {
     private static final Logger LOGGER = LoggerFactory.getLogger(Api.class);
 
     public static void getFormats(Context ctx) {
-        String videoID = ctx.pathParam("id");
-        if (videoID.length() != 11) {
-            Responses.VIDEO_DOES_NOT_EXIST.apply(ctx);
-            return;
-        }
+        String videoID = ctx.queryParam("id");
+        String format = ctx.queryParam("format");
 
         LOGGER.info(Utils.getIp(ctx) + ": Fetching video data for " + videoID);
 
-        StrippedVideoInfo info = Youtube.getVideoInfo(videoID);
+        StrippedVideoInfo info = Youtube.getVideoInfo(videoID, format);
         if (info == null) {
             Responses.VIDEO_DOES_NOT_EXIST.apply(ctx);
             return;
@@ -33,38 +38,60 @@ public class Api {
         ctx.json(info.toJson());
     }
 
-    public static void download(Context ctx) {
-        String videoID = ctx.pathParam("id");
-
-        if (videoID.length() != 11) {
-            Responses.VIDEO_DOES_NOT_EXIST.apply(ctx);
+    public static void search(Context ctx) throws TrackSearchException {
+        String query = ctx.queryParam("query");
+        if (query == null) {
+            Responses.QUERY_INVALID.apply(ctx);
             return;
         }
+        String limitString = ctx.queryParam("limit");
+        int limit = Utils.optTry(() -> Integer.parseInt(limitString == null ? "" : limitString)).orElse(10);
 
-        DownloadType type = DownloadType.get(ctx.queryParam("type"));
-
-        if (type == null) {
-            Responses.INVALID_TYPE.apply(ctx);
-            return;
+        List<Map<String, ?>> json = new ArrayList<>();
+        for (Youtube.Result result : Youtube.searchYoutube(query, limit)) {
+            json.add(result.toJson());
         }
+        ctx.json(json);
+    }
 
-        StrippedVideoInfo video = Youtube.getVideoInfo(videoID);
+    public static void download(Context ctx) throws InterruptedException, IOException {
+        String videoID = ctx.queryParam("id");
+        String format = ctx.queryParam("format");
+
+        StrippedVideoInfo video = Youtube.getVideoInfo(videoID, format);
         if (video == null) {
             Responses.VIDEO_DOES_NOT_EXIST.apply(ctx);
             return;
         }
-        if (video.audioUrl == null) type = DownloadType.AV;
 
         LOGGER.info(Utils.getIp(ctx) + ": Starting video download for " + videoID);
 
-        ctx.contentType(ContentType.APPLICATION_OCTET_STREAM);
-        ctx.header(Header.CONTENT_DISPOSITION,
-                "attachment; filename=" + (video.titleForDownload + '.' + type.fileExtension));
-        try {
-            URLConnection conn = new URL(video.getDownloadUrl(type)).openConnection();
-            ctx.header(Header.CONTENT_LENGTH, String.valueOf(conn.getContentLength()));
-            conn.getInputStream().transferTo(ctx.res().getOutputStream());
-        } catch (Exception ignored) {
+        while (true) {
+            HttpRequest request = HttpRequest.newBuilder()
+                    .uri(URI.create("https://loader.to/ajax/progress.php?id=" + video.downloadId()))
+                    .header("Accept-Encoding", "text")
+                    .build();
+
+            HttpResponse<String> response = Youtube.CLIENT.send(request, HttpResponse.BodyHandlers.ofString());
+            JSONObject object = new JSONObject(response.body());
+            if (object.optString("text", "").equalsIgnoreCase("error")) {
+                return;
+            }
+
+            if (object.getInt("progress") == 1000) {
+                download(ctx, video, object);
+                return;
+            }
+
+            Thread.sleep(1000);
         }
+    }
+
+    private static void download(Context ctx, StrippedVideoInfo video, JSONObject object) throws IOException {
+        ctx.contentType(ContentType.APPLICATION_OCTET_STREAM);
+        ctx.header(Header.CONTENT_DISPOSITION, "attachment; filename=" + (video.downloadName()));
+        URLConnection conn = new URL(object.getString("download_url")).openConnection();
+        ctx.header(Header.CONTENT_LENGTH, String.valueOf(conn.getContentLength()));
+        conn.getInputStream().transferTo(ctx.res().getOutputStream());
     }
 }
