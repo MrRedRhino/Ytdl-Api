@@ -67,24 +67,28 @@ public class Api {
         LOGGER.info(Utils.getIp(ctx) + ": Starting video download for " + videoID);
 
         while (true) {
-            HttpRequest request = HttpRequest.newBuilder()
-                    .uri(URI.create("https://loader.to/ajax/progress.php?id=" + video.downloadId()))
-                    .header("Accept-Encoding", "text")
-                    .build();
-
-            HttpResponse<String> response = Youtube.CLIENT.send(request, HttpResponse.BodyHandlers.ofString());
-            JSONObject object = new JSONObject(response.body());
+            JSONObject object = fetchProgress(video);
             if (object.optString("text", "").equalsIgnoreCase("error")) {
                 return;
             }
 
-            if (object.getInt("progress") == 1000) {
+            if (!object.optString("download_url", "").isEmpty()) {
                 download(ctx, video, object);
                 return;
             }
 
             Thread.sleep(1000);
         }
+    }
+
+    private static JSONObject fetchProgress(StrippedVideoInfo video) throws IOException, InterruptedException {
+        HttpRequest request = HttpRequest.newBuilder()
+                .uri(URI.create("https://loader.to/ajax/progress.php?id=" + video.downloadId()))
+                .header("Accept-Encoding", "text")
+                .build();
+
+        HttpResponse<String> response = Youtube.CLIENT.send(request, HttpResponse.BodyHandlers.ofString());
+        return new JSONObject(response.body());
     }
 
     private static void download(Context ctx, StrippedVideoInfo video, JSONObject object) throws IOException {

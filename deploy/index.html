@@ -18,7 +18,7 @@
 
     .button:disabled {
         background-color: darkgray !important;
-        color: gray !important;
+        color: grey !important;
     }
 
     ul {
@@ -84,9 +84,13 @@
         try {
             document.getElementById("submit-button").disabled = true;
 
-            fetch("/formats?id=" + inputElement.value + "&format=" + "mp3").then(response => response.json().then(json => {
+            document.getElementById("video-title").innerText = "";
+            document.getElementById("video-url-href").hidden = true;
+            document.getElementById("mp3-href").hidden = true;
+            document.getElementById("wav-href").hidden = true;
 
-                // document.getElementById("submit-button").disabled = false;
+            fetch("/formats?id=" + inputElement.value + "&format=" + "mp3").then(response => response.json().then(json => {
+                document.getElementById("submit-button").disabled = false;
 
                 if (response.status !== 200) return;
 
@@ -100,14 +104,16 @@
 
                 document.getElementById("wav-href").onclick = () => location.href = `/download/?id=${inputElement.value}&format=wav`;
                 document.getElementById("wav-href").hidden = false;
-                document.getElementById("submit-button").disabled = false;
             }));
         } finally {
         }
     }
 
     function searchVideos() {
+        const searchButton = document.getElementById("submit-search-button");
         const query = document.getElementById("video-search").value;
+
+        searchButton.disabled = true;
         fetch("/search?query=" + query).then(response => response.json().then(json => {
             const resultsUL = document.getElementById("results");
             resultsUL.innerHTML = "";
@@ -120,6 +126,7 @@
                 }
                 resultsUL.append(element);
             }
+            searchButton.disabled = false;
         }));
     }
 </script>
